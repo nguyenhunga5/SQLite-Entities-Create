@@ -10,10 +10,40 @@ import Cocoa
 
 class ViewController: NSViewController {
 
+    static let dataType = "BIGINT:NSNumber|BIT:NSNumber|BOOL:NSNumber|BOOLEAN:NSNumber|INT:NSNumber|INT2:NSNumber|INT8:NSNumber|INTEGER:NSNumber|MEDIUMINT:NSNumber|SMALLINT:NSNumber|TINYINT:NSNumber|DECIMAL:NSDecimalNumber|DOUBLE:NSDecimalNumber|DOUBLE PRECISION:NSDecimalNumber|FLOAT:NSDecimalNumber|NUMERIC:NSDecimalNumber|REAL:NSDecimalNumber|CHAR:String|CHARACTER:String|CLOB:String|NATIONAL VARYING CHARACTER:String|NATIVE CHARACTER:String|NCHAR:String|NVARCHAR:String|TEXT:String|VARCHAR:String|VARIANT:String|VARYING CHARACTER:String|BINARY:NSData|BLOB:NSData|VARBINARY:NSData|NULL:NSNull|DATE:NSDate|DATETIME:NSDate|TIME:NSDate|TIMESTAMP:NSDate|MEDIUMTEXT:String".componentsSeparatedByString("|")
+    
+    var dataTypeDict = [String : String]()
+    let application = "PMS"
+    let author = "Hung Nguyen Thanh"
+    let dateFormat = NSDateFormatter()
+    let invalidType = ["alloc", "autorelease", "class", "columns", "conformsToProtocol", "dataSource", "dealloc", "delegate", "delete", "description", "hash", "hashCode", "id", "init", "isAutoIncremented", "isEqual", "isKindOfClass", "isMemberOfClass", "isProxy", "isSaveable", "load", "new", "performSelector", "primaryKey", "release", "respondsToSelector", "retain", "retainCount", "save", "saved", "self", "superclass", "table", "zone"]
+
+    var dataSource : String!
+    
+    var createDate : String {
+        dateFormat.dateFormat = "MM/dd/yyyy"
+        return dateFormat.stringFromDate(NSDate())
+    }
+    
+    var createYear : String {
+        dateFormat.dateFormat = "yyyy"
+        return dateFormat.stringFromDate(NSDate())
+    }
+    
+    @IBOutlet var logTextView: NSTextView!
+    @IBOutlet weak var filePathTextField: NSTextField!
+    
+    
     override func viewDidLoad() {
         super.viewDidLoad()
 
-        // Do any additional setup after loading the view.
+        logTextView.string = ""
+        var dataType : [String]
+        for str in ViewController.dataType {
+            dataType = str.componentsSeparatedByString(":")
+            dataTypeDict[dataType[0]] = dataType[1]
+        }
+        
     }
 
     override var representedObject: AnyObject? {
@@ -22,6 +52,319 @@ class ViewController: NSViewController {
         }
     }
 
+    @IBAction func browserAction(sender: AnyObject) {
+        
+        var fileOpenDialog = NSOpenPanel()
+        fileOpenDialog.allowsMultipleSelection = false
+        fileOpenDialog.canChooseDirectories = false
+        fileOpenDialog.canChooseFiles = true
+        
+        if fileOpenDialog.runModal() == NSFileHandlingPanelOKButton {
+            filePathTextField.stringValue = fileOpenDialog.URL!.relativePath!
+        }
+    }
+    
+    func addStringToLog(string : String) {
+        if NSThread.currentThread().isMainThread {
+            logTextView.string = logTextView.string! + "\n" + string
+        } else {
+            dispatch_async(dispatch_get_main_queue(), { () -> Void in
+                self.logTextView.string = self.logTextView.string! + "\n" + string
+            })
+        }
+    }
+    
+    @IBAction func startAction(sender: AnyObject) {
+        let startButton = sender as! NSButton
+        startButton.enabled = false
+        dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), { () -> Void in
+            
+            var db = FMDatabase(path: self.filePathTextField.stringValue)
+            if db.open() {
+                self.dataSource = self.filePathTextField.stringValue.lastPathComponent.stringByDeletingPathExtension
+                let resultTable = db.executeQuery("SELECT [name] FROM [sqlite_master] WHERE [type] = 'table' AND [name] NOT IN ('sqlite_sequence');", withArgumentsInArray: nil)
+                
+                let fileManager = NSFileManager.defaultManager()
+                let dirPath = fileManager.currentDirectoryPath + "/Entities"
+                
+                if !fileManager.fileExistsAtPath(dirPath) {
+                    fileManager.createDirectoryAtPath(dirPath, withIntermediateDirectories: true, attributes: nil, error: nil)
+                }
+                
+                while resultTable.next() {
+                    let tableName = resultTable.stringForColumn("name")
+                    var fileName = self.application + self.convertToNiceName(tableName)
+                    let className = fileName
+                    fileName += ".swift"
+                    
+                    self.addStringToLog("Creating table \(tableName) className: \(className)")
+                    
+                    var content : NSMutableString = NSMutableString()
+                    content.appendString("//\n")
+                    content.appendString("// \(fileName)\n")
+                    content.appendString("// \(self.application)\n")
+                    content.appendString("//\n")
+                    content.appendString("// Created by \(self.author) on \(self.createDate)\n")
+                    content.appendString("// Copyright \(self.createYear) \(self.author). All rights reserved.\n")
+                    
+                    content.appendString("//\n")
+                    
+                    // Import
+                    content.appendString("import UIKit\n")
+                    content.appendString("import ObjectMapper\n")
+                    content.appendString("import Alamofire\n")
+                    content.appendString("import AlamofireObjectMapper\n\n")
+                    
+                    // Class Description
+                    content.appendString("/*!\n")
+                    content.appendString(" @class \(className)\n")
+                    content.appendString(" @discussion This class represents a record in the \"\(tableName)\" table.\n")
+                    content.appendString(" @updated \(self.createDate)\n")
+                    content.appendString(" */\n")
+                    
+                    content.appendString("class \(className) : PMSBaseEntity {\n")
+                    
+                    // Query Columns
+                    let columnResultSet = db.executeQuery("PRAGMA table_info(`\(tableName)`);", withArgumentsInArray: nil)
+                    var haveAUTOINCREMENTED = false
+                    var PKCOUNT = 0
+                    
+                    var insertStr = "INSERT INTO `\(tableName)`("
+                    var updateStr = "UPDATE `\(tableName)` SET "
+                    var columnNames = [String]()
+                    var columnRealNames = [String]()
+                    var columnTypes = [String]()
+                    var columnNullable = [String]()
+                    var primaryKey = [String]()
+                    
+                    while columnResultSet.next() {
+                        var name = columnResultSet.stringForColumn("name")
+                        columnRealNames.append(name)
+                        insertStr += " \(name),"
+                        columnNames.append(self.checkInvalidName(name))
+                        columnTypes.append(self.mappingData(columnResultSet.stringForColumn("type")))
+                        
+                        // Check us notnull
+                        /*
+                            // Not use
+                        if columnResultSet.intForColumn("notnull") == 1 {
+                            columnNullable.append("")
+                        } else {
+                            columnNullable.append("!")
+                        }
+                        */
+                        
+                        // Check primary key
+                        if columnResultSet.intForColumn("pk") == 1 {
+                            primaryKey.append(name)
+                        }
+                    }
+                    
+                    columnResultSet.close()
+                    
+                    insertStr.removeAtIndex(insertStr.endIndex.predecessor())
+                    insertStr += ") VALUES("
+                    
+                    var VALUES=""
+                    var UPDATEVALUES=""
+                    
+                    // Create Key for Class
+                    content.appendString("\n\t// MARK: - Define Key\n")
+                    for i in 0..<columnRealNames.count {
+                        let realName = columnRealNames[i]
+                        content.appendString("\tstatic let k\(self.convertToNiceName(realName)) = \"\(realName)\"\n")
+                        let checkIsPrimariKey = primaryKey.filter{ $0 == realName }
+                        if checkIsPrimariKey.count == 0 {
+                            updateStr += " " + realName + " = ?,"
+                        }
+                    }
+                    
+                    updateStr.removeAtIndex(updateStr.endIndex.predecessor())
+                    
+                    var subscriptGetStr = "switch key {\n"
+                    var subscriptSetStr = "switch key {\n"
+                    
+                    // Create Properties
+                    content.appendString("\n\t// MARK: - Properties\n")
+                    for i in 0..<columnNames.count {
+                        let name = columnNames[i]
+                        content.appendString("\tlazy var \(name) = \(columnTypes[i])(")
+                        
+                        if columnTypes[i] == "NSDecimalNumber" {
+                            content.appendString("double: 0.0")
+                        } else if columnTypes[i] == "NSNumber" {
+                            content.appendString("integer: 0")
+                        }
+                        
+                        content.appendString(")\n")
+                        let checkIsPrimariKey = primaryKey.filter{ $0 == columnRealNames[i] }
+                        if checkIsPrimariKey.count == 0 {
+                            UPDATEVALUES += " " + name + ","
+                        }
+                        
+                        insertStr += " ?,"
+                        VALUES += " \(name),"
+                        
+                        // subscript
+                        subscriptGetStr += "\n\t\t\tcase \(className).k\(self.convertToNiceName(columnRealNames[i])) :\n\t\t\t\treturn self.\(name)"
+                        subscriptSetStr += "\n\t\t\tcase \(className).k\(self.convertToNiceName(columnRealNames[i])) :\n\t\t\t\tself.\(name) = newValue as! \(columnTypes[i])"
+                    }
+                    
+                    subscriptGetStr += "\n\t\t\tdefault:\n\t\t\t\treturn nil\n\t\t\t}"
+                    subscriptSetStr += "\n\t\t\tdefault:\n\t\t\t\tprintln(\"\(className) don't have property for key: \\(key) value: \\(newValue)\")\n\t\t\t}"
+                    
+                    
+                    insertStr.removeAtIndex(insertStr.endIndex.predecessor())
+                    insertStr += ");"
+                    VALUES.removeAtIndex(VALUES.endIndex.predecessor())
+                    
+                    updateStr.removeAtIndex(updateStr.endIndex.predecessor());
+                    updateStr += " WHERE "
+                    UPDATEVALUES.removeAtIndex(UPDATEVALUES.endIndex.predecessor())
+                    
+                    // Create datasource method
+                    content.appendString("\n\n\toverride class func dataSource() -> String {\n\t\treturn \"\(self.dataSource)\"\n\t}\n")
+                    
+                    // Create return TableName
+                    content.appendString("\n\n\toverride class func table() -> String {\n\t\treturn \"\(tableName)\"\n\t}\n")
+                    
+                    // Create return Primary Key method
+                    content.appendString("\n\n\toverride class func primaryKey() -> [String]? {\n")
+                    content.appendString("\t\tvar cols = [String]()\n")
+                    for pk in primaryKey {
+                        content.appendString("\t\tcols.append(\"\(pk)\")")
+                        
+                        // For Update
+                        updateStr += " \(pk) = ? AND"
+                        
+                        UPDATEVALUES += ", "
+                        for i in 0..<columnRealNames.count {
+                            if pk == columnRealNames[i] {
+                                UPDATEVALUES += columnNames[i]
+                                break
+                            }
+                        }
+                    }
+                    
+                    // Remove AND in last string
+                    
+                    updateStr.removeRange(advance(updateStr.endIndex.predecessor(), -3)...updateStr.endIndex.predecessor())
+                    
+                    content.appendString("\n\t\treturn cols\n")
+                    content.appendString("\t}\n")
+                    
+                    // Generates insert, update, delete
+                    content.appendString("\n\t// MARK: - Database Support\n")
+                    content.appendString("\n\toverride class func getObjects<T : Mappable>() ->[T]? {\n\t\treturn nil\n\t}\n")
+                    content.appendString("\toverride func insertToDB(db : FMDatabase) -> Bool {")
+                    content.appendString("\n")
+                    content.appendString("\t\tlet sqlCommand = \"\(insertStr)\"\n\n")
+                    content.appendString("\t\tlet args = [\(VALUES)]\n")
+                    content.appendString("\t\tlet result = db.executeUpdate(sqlCommand, withArgumentsInArray: args)\n")
+                    content.appendString("\t\treturn result\n\t}\n")
+                    
+                    // Update method
+                    content.appendString("\n\toverride func updateToDB(db : FMDatabase) -> Bool {\n")
+                    content.appendString("\t\tvar sqlCommand = \"\(updateStr)\"\n\n")
+                    content.appendString("\t\tlet args = [\(UPDATEVALUES)]\n")
+                    content.appendString("\t\tlet result = db.executeUpdate(sqlCommand, withArgumentsInArray: args)\n")
+                    content.appendString("\t\treturn result\n\t}\n")
+                    
+                    
+                    // Debug
+                    content.appendString("\n\t// MARK: - Debug\n")
+                    content.appendString("\toverride func debugQuickLookObject() -> AnyObject  {\n")
+                    content.appendString("\t\tvar debugStr = \"================== \(className) ===================\"")
+                    
+                    for name in columnNames {
+                        content.appendString("\n\t\tdebugStr += \"\\n\\t\(name) : \\(\(name))\"")
+                    }
+                    
+                    content.appendString("\n\t\t debugStr += \"\\n======================================\"")
+                    
+                    content.appendString("\n\t\treturn debugStr\n")
+                    content.appendString("\t}\n")
+                    
+                    
+                    // Subscript
+                    content.appendString("\n\t// MARK: - Subscript\n")
+                    content.appendString("\toverride subscript(key : String) -> AnyObject! {\n\n")
+                    content.appendString("\t\tget {\n")
+                    content.appendString("\t\t\t\(subscriptGetStr)\n\t\t}\n")
+                    content.appendString("\t\tset {\n")
+                    content.appendString("\t\t\t\(subscriptSetStr)\n\t\t}\n")
+                    content.appendString("\t}\n\n")
+                    
+                    // Mapping
+                    content.appendString("\n\t// MARK: - Mapping\n")
+                    content.appendString("\toverride class func newInstance(map: Map) -> Mappable? {\n\n")
+                    content.appendString("\t\treturn \(className)()\n")
+                    content.appendString("\t}\n")
+                    
+                    content.appendString("\toverride func mapping(map: Map) {\n\n")
+                    content.appendString("\t\tsuper.mapping(map)\n")
+                    for i in 0..<columnRealNames.count {
+                        let realName = columnRealNames[i]
+                        content.appendString("\t\t\(columnNames[i]) = (map[\(className).k\(self.convertToNiceName(columnRealNames[i]))].value() ?? \(columnTypes[i])())\n")
+                    }
+                    content.appendString("\t}\n")
+                    
+                    
+                    // Close of class
+                    content.appendString("}")
+                    
+                    content.writeToFile(dirPath + "/\(fileName)", atomically: true, encoding: NSUTF8StringEncoding, error: nil)
+                    
+                }
+                
+                resultTable.close()
+                startButton.enabled = true
+            }
+        })
+    }
+    
+    @IBAction func clearAction(sender: AnyObject) {
+        
+    }
+    
+    func checkInvalidName(name : String) -> String {
+        var niceName = invalidType.filter{
+            $0 == name
+        }
+        
+        if niceName.count == 0 {
+            niceName.append(name)
+        } else {
+            niceName[0] = name.uppercaseString
+        }
+        
+        return niceName[0]
+    }
+    
+    func convertToNiceName(name : String) -> String {
+        var niceName = ""
+        for subOfName in name.componentsSeparatedByString("_") {
+            niceName += subOfName.capitalizedString
+        }
+        
+        return niceName
+    }
 
+    func mappingData(dataType : String) -> String {
+        
+        let range = dataType.rangeOfString("(", options: NSStringCompareOptions.CaseInsensitiveSearch, range: Range<String.Index>(start: dataType.startIndex, end: dataType.endIndex), locale: nil)
+        var fixDataType = range == nil ? dataType : dataType.substringToIndex(range!.endIndex.predecessor())
+        var mappedDataType = self.dataTypeDict[fixDataType.uppercaseString]
+        
+        if mappedDataType == nil {
+            mappedDataType = "AnyObject"
+        }
+        
+        return mappedDataType!
+    }
+    
+    
+    
+    
 }
 
