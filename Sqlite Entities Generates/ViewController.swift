@@ -16,7 +16,7 @@ class ViewController: NSViewController {
     let application = "PMS"
     let author = "Hung Nguyen Thanh"
     let dateFormat = NSDateFormatter()
-    let invalidType = ["alloc", "autorelease", "class", "columns", "conformsToProtocol", "dataSource", "dealloc", "delegate", "delete", "description", "hash", "hashCode", "id", "init", "isAutoIncremented", "isEqual", "isKindOfClass", "isMemberOfClass", "isProxy", "isSaveable", "load", "new", "performSelector", "primaryKey", "release", "respondsToSelector", "retain", "retainCount", "save", "saved", "self", "superclass", "table", "zone"]
+    let invalidType = ["alloc", "autorelease", "class", "columns", "conformsToProtocol", "dataSource", "dealloc", "delegate", "delete", "description", "hash", "hashCode", "id", "init", "isAutoIncremented", "isEqual", "isKindOfClass", "isMemberOfClass", "isProxy", "isSaveable", "load", "new", "performSelector", "primaryKey", "release", "respondsToSelector", "retain", "retainCount", "save", "saved", "self", "superclass", "table", "zone", "default", "var", "let"]
 
     var dataSource : String!
     
