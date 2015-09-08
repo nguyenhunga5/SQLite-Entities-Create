@@ -321,20 +321,34 @@ class ViewController: NSViewController {
                     content.appendString("\n\t\treturn cols\n")
                     content.appendString("\t}\n")
                     
+                    var valueArray: [String]
                     // Generates insert, update, delete
                     content.appendString("\n\t// MARK: - Database Support\n")
                     content.appendString("\n\toverride class func getObjects<T : Mappable>() ->[T]? {\n\t\treturn nil\n\t}\n")
                     content.appendString("\toverride func insertToDB(db : FMDatabase) -> Bool {")
                     content.appendString("\n")
                     content.appendString("\t\tlet sqlCommand = \"\(insertStr)\"\n\n")
-                    content.appendString("\t\tlet args = [\(VALUES)]\n")
+                    content.appendString("\t\tvar args = [AnyObject]()\n")
+                    
+                    valueArray = VALUES.componentsSeparatedByString(",")
+                    for nameOfColumn in valueArray {
+                        content.appendString("\t\targs.append(\(nameOfColumn.stringByTrimmingCharactersInSet(NSCharacterSet.whitespaceAndNewlineCharacterSet())))\n")
+                    }
+                    
+                    
                     content.appendString("\t\tlet result = db.executeUpdate(sqlCommand, withArgumentsInArray: args)\n")
                     content.appendString("\t\treturn result\n\t}\n")
                     
                     // Update method
                     content.appendString("\n\toverride func updateToDB(db : FMDatabase) -> Bool {\n")
                     content.appendString("\t\tvar sqlCommand = \"\(updateStr)\"\n\n")
-                    content.appendString("\t\tlet args = [\(UPDATEVALUES)]\n")
+                    content.appendString("\t\tvar args = [AnyObject]()\n")
+                    
+                    valueArray = UPDATEVALUES.componentsSeparatedByString(",")
+                    for nameOfColumn in valueArray {
+                        content.appendString("\t\targs.append(\(nameOfColumn.stringByTrimmingCharactersInSet(NSCharacterSet.whitespaceAndNewlineCharacterSet())))\n")
+                    }
+                    
                     content.appendString("\t\tlet result = db.executeUpdate(sqlCommand, withArgumentsInArray: args)\n")
                     content.appendString("\t\treturn result\n\t}\n")
                     
@@ -371,6 +385,7 @@ class ViewController: NSViewController {
                     
                     content.appendString("\toverride func mapping(map: Map) {\n\n")
                     content.appendString("\t\tsuper.mapping(map)\n")
+                    content.appendString("\t\tvar tempValue: AnyObject?\n")
                     for i in 0..<columnRealNames.count {
                         let realName = columnRealNames[i]
                         
@@ -386,7 +401,15 @@ class ViewController: NSViewController {
                             
                             stringInitValue += ")"
                             
-                            content.appendString("\t\t\(columnNames[i]) = (map[\(className).k\(self.convertToNiceName(columnRealNames[i]))].value() ?? \(stringInitValue))\n")
+                            content.appendString("\n\t\ttempValue <- map[\(className).k\(self.convertToNiceName(columnRealNames[i]))]\n")
+                            content.appendString("\t\tif tempValue == nil {\n")
+                            
+                            content.appendString("\t\t\t\(columnNames[i]) = \(stringInitValue)\n")
+                            
+                            content.appendString("\t\t} else {\n")
+                            content.appendString("\t\t\t\(columnNames[i]) = tempValue as! \(columnTypes[i])\n")
+                            
+                            content.appendString("\t\t}\n\n")
                         }
                         
                     }
