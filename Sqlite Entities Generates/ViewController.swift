@@ -20,6 +20,7 @@ class ViewController: NSViewController {
 
     var dataSource : String!
     
+    
     var createDate : String {
         dateFormat.dateFormat = "MM/dd/yyyy"
         return dateFormat.stringFromDate(NSDate())
@@ -134,8 +135,9 @@ class ViewController: NSViewController {
                     var columnNames = [String]()
                     var columnRealNames = [String]()
                     var columnTypes = [String]()
-                    var columnNullable = [String]()
+                    var columnNullable = [Bool]()
                     var primaryKey = [String]()
+                    var columnDefaultValue = [AnyObject]()
                     
                     while columnResultSet.next() {
                         var name = columnResultSet.stringForColumn("name")
@@ -145,14 +147,15 @@ class ViewController: NSViewController {
                         columnTypes.append(self.mappingData(columnResultSet.stringForColumn("type")))
                         
                         // Check us notnull
-                        /*
-                            // Not use
                         if columnResultSet.intForColumn("notnull") == 1 {
-                            columnNullable.append("")
+                            columnNullable.append(false)
                         } else {
-                            columnNullable.append("!")
+                            columnNullable.append(true)
                         }
-                        */
+                        
+                        // Default value
+                        columnDefaultValue.append(columnResultSet.objectForColumnName("dflt_value"))
+                       
                         
                         // Check primary key
                         if columnResultSet.intForColumn("pk") == 1 {
@@ -185,18 +188,83 @@ class ViewController: NSViewController {
                     var subscriptSetStr = "switch key {\n"
                     
                     // Create Properties
+                    let numberFormatter = NSNumberFormatter()
                     content.appendString("\n\t// MARK: - Properties\n")
                     for i in 0..<columnNames.count {
                         let name = columnNames[i]
-                        content.appendString("\tlazy var \(name) = \(columnTypes[i])(")
+                        let defaultValue = columnDefaultValue[i]
+                        var  realDefaultValue: String
+                        var numberFromString: NSNumber!
                         
-                        if columnTypes[i] == "NSDecimalNumber" {
-                            content.appendString("double: 0.0")
-                        } else if columnTypes[i] == "NSNumber" {
-                            content.appendString("integer: 0")
+                        if defaultValue.isKindOfClass(NSNull.classForCoder()) {
+                            realDefaultValue = "nil"
+                        } else {
+                            numberFormatter.numberStyle = NSNumberFormatterStyle.DecimalStyle
+                            numberFromString = numberFormatter.numberFromString(defaultValue as! String)
+                            if columnTypes[i] == "NSDecimalNumber" {
+                                
+                                if numberFromString != nil {
+                                    realDefaultValue = "NSDecimalNumber(double: \(numberFromString.doubleValue))"
+                                } else {
+                                    realDefaultValue = "NSDecimalNumber(double: 0.0)"
+                                }
+                                
+                            } else if columnTypes[i] == "NSNumber" {
+                                
+                                if numberFromString != nil {
+                                    realDefaultValue = "NSNumber(integer: \(numberFromString.integerValue))"
+                                } else {
+                                    realDefaultValue = "NSNumber(integer: 0)"
+                                }
+                                
+                            } else if columnTypes[i] == "NSDate" {
+                                if defaultValue.description == "CURRENT_TIMESTAMP" {
+                                    realDefaultValue = "NSDate()"
+                                } else {
+                                    // TODO: Need add format
+                                    realDefaultValue = "nil"
+                                }
+                            } else if columnTypes[i] == "String" {
+                                if defaultValue as! String == "NULL" {
+                                    realDefaultValue = "nil"
+                                } else {
+                                    realDefaultValue = "\"\(defaultValue as! String)\""
+                                }
+                            } else {
+                                realDefaultValue = "nil"
+                            }
+                            
                         }
                         
-                        content.appendString(")\n")
+                        if columnNullable[i] {
+                            
+                            content.appendString("\tvar \(name): \(columnTypes[i])!")
+                            
+                            if !defaultValue.isKindOfClass(NSNull.classForCoder()) {
+                                content.appendString(" = \(realDefaultValue)")
+                            }
+                            
+                        } else {
+                            
+                            if realDefaultValue != "nil" {
+                                
+                                content.appendString("\tlazy var \(name) = \(realDefaultValue)")
+                                
+                            } else {
+                                content.appendString("\tlazy var \(name) = \(columnTypes[i])(")
+                                
+                                if columnTypes[i] == "NSDecimalNumber" {
+                                    content.appendString("double: 0.0")
+                                } else if columnTypes[i] == "NSNumber" {
+                                    content.appendString("integer: 0")
+                                }
+                                
+                                content.appendString(")")
+                            }
+                            
+                        }
+                        
+                        content.appendString("\n")
                         let checkIsPrimariKey = primaryKey.filter{ $0 == columnRealNames[i] }
                         if checkIsPrimariKey.count == 0 {
                             UPDATEVALUES += " " + name + ","
@@ -305,7 +373,22 @@ class ViewController: NSViewController {
                     content.appendString("\t\tsuper.mapping(map)\n")
                     for i in 0..<columnRealNames.count {
                         let realName = columnRealNames[i]
-                        content.appendString("\t\t\(columnNames[i]) = (map[\(className).k\(self.convertToNiceName(columnRealNames[i]))].value() ?? \(columnTypes[i])())\n")
+                        
+                        if columnNullable[i] {
+                            content.appendString("\t\t\(columnNames[i]) = map[\(className).k\(self.convertToNiceName(columnRealNames[i]))].value()\n")
+                        } else {
+                            var stringInitValue = columnTypes[i] + "("
+                            if columnTypes[i] == "NSDecimalNumber" {
+                                stringInitValue += "double: 0.0"
+                            } else if columnTypes[i] == "NSNumber" {
+                                stringInitValue += "integer: 0"
+                            }
+                            
+                            stringInitValue += ")"
+                            
+                            content.appendString("\t\t\(columnNames[i]) = (map[\(className).k\(self.convertToNiceName(columnRealNames[i]))].value() ?? \(stringInitValue))\n")
+                        }
+                        
                     }
                     content.appendString("\t}\n")
                     
