@@ -92,11 +92,37 @@ class ViewController: NSViewController {
                     fileManager.createDirectoryAtPath(dirPath, withIntermediateDirectories: true, attributes: nil, error: nil)
                 }
                 
+                let parserObjectString = NSMutableString(string: "")
+                
+                parserObjectString.appendString("//\n")
+                parserObjectString.appendString("// PMSParserTableDataHelper\n")
+                parserObjectString.appendString("// \(self.application)\n")
+                parserObjectString.appendString("//\n")
+                parserObjectString.appendString("// Created by \(self.author) on \(self.createDate)\n")
+                parserObjectString.appendString("// Copyright \(self.createYear) \(self.author). All rights reserved.\n")
+                
+                parserObjectString.appendString("//\n")
+                
+                // Import
+                parserObjectString.appendString("import UIKit\n")
+                parserObjectString.appendString("import ObjectMapper\n")
+                parserObjectString.appendString("import Alamofire\n")
+                parserObjectString.appendString("import AlamofireObjectMapper\n\n")
+                
+                parserObjectString.appendString("class PMSParserTableDataHelper : PMSBaseEntity {\n")
+                
+                parserObjectString.appendString("\tfunc parserDataToTableArray(tableName: String, rows: [NSDictionary]) -> [PMSBaseEntity] {\n")
+                parserObjectString.appendString("\n\t\tvar arr: [PMSBaseEntity]!\n")
+                parserObjectString.appendString("\n\t\tswitch tableName {\n")
+                
                 while resultTable.next() {
                     let tableName = resultTable.stringForColumn("name")
                     var fileName = self.application + self.convertToNiceName(tableName)
                     let className = fileName
                     fileName += ".swift"
+                    
+                    parserObjectString.appendString("\t\tcase \(className).table():\n\t\t\tarr = Mapper<\(className)>().mapArray(rows)\n\n")
+                    
                     
                     self.addStringToLog("Creating table \(tableName) className: \(className)")
                     
@@ -328,7 +354,7 @@ class ViewController: NSViewController {
                     content.appendString("\toverride func insertToDB(db : FMDatabase) -> Bool {")
                     content.appendString("\n")
                     content.appendString("\t\tlet sqlCommand = \"\(insertStr)\"\n\n")
-                    content.appendString("\t\tvar args = [AnyObject]()\n")
+                    content.appendString("\t\tvar args = [AnyObject?]()\n")
                     
                     valueArray = VALUES.componentsSeparatedByString(",")
                     for nameOfColumn in valueArray {
@@ -342,7 +368,7 @@ class ViewController: NSViewController {
                     // Update method
                     content.appendString("\n\toverride func updateToDB(db : FMDatabase) -> Bool {\n")
                     content.appendString("\t\tvar sqlCommand = \"\(updateStr)\"\n\n")
-                    content.appendString("\t\tvar args = [AnyObject]()\n")
+                    content.appendString("\t\tvar args = [AnyObject?]()\n")
                     
                     valueArray = UPDATEVALUES.componentsSeparatedByString(",")
                     for nameOfColumn in valueArray {
@@ -422,6 +448,9 @@ class ViewController: NSViewController {
                     content.writeToFile(dirPath + "/\(fileName)", atomically: true, encoding: NSUTF8StringEncoding, error: nil)
                     
                 }
+                
+                parserObjectString.appendString("\t\tdefault:\n\t\t\tprintln(\"Don't have table: \\(tableName)\")\n\t\t}\n\t\treturn arr\n\t}\n}")
+                parserObjectString.writeToFile(dirPath + "/PMSParserTableDataHelper.swift", atomically: true, encoding: NSUTF8StringEncoding, error: nil)
                 
                 resultTable.close()
                 startButton.enabled = true
