@@ -385,13 +385,13 @@ class ViewController: NSViewController {
                     
                     content.appendString("\toverride func mapping(map: Map) {\n\n")
                     content.appendString("\t\tsuper.mapping(map)\n")
-                    content.appendString("\t\tvar tempValue: AnyObject?\n")
+//                    content.appendString("\t\tvar tempValue: AnyObject?\n")
                     for i in 0..<columnRealNames.count {
                         let realName = columnRealNames[i]
                         
-                        if columnNullable[i] {
-                            content.appendString("\t\t\(columnNames[i]) = map[\(className).k\(self.convertToNiceName(columnRealNames[i]))].value()\n")
-                        } else {
+                        /* if columnNullable[i] { */
+                            content.appendString("\t\t\(columnNames[i]) <- map[\(className).k\(self.convertToNiceName(columnRealNames[i]))]\n")
+                        /* } else {
                             var stringInitValue = columnTypes[i] + "("
                             if columnTypes[i] == "NSDecimalNumber" {
                                 stringInitValue += "double: 0.0"
@@ -410,7 +410,7 @@ class ViewController: NSViewController {
                             content.appendString("\t\t\t\(columnNames[i]) = tempValue as! \(columnTypes[i])\n")
                             
                             content.appendString("\t\t}\n\n")
-                        }
+                        } */
                         
                     }
                     content.appendString("\t}\n")
