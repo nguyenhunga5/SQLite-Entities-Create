@@ -356,13 +356,13 @@ class ViewController: NSViewController {
                     // Debug
                     content.appendString("\n\t// MARK: - Debug\n")
                     content.appendString("\toverride func debugQuickLookObject() -> AnyObject  {\n")
-                    content.appendString("\t\tvar debugStr = \"================== \(className) ===================\"")
+                    content.appendString("\t\tvar debugStr = NSMutableString(string: \"================== \(className) ===================\")")
                     
                     for name in columnNames {
-                        content.appendString("\n\t\tdebugStr += \"\\n\\t\(name) : \\(\(name))\"")
+                        content.appendString("\n\t\tdebugStr.appendString(\"\\n\\t\(name) : \\(\(name))\")")
                     }
                     
-                    content.appendString("\n\t\t debugStr += \"\\n======================================\"")
+                    content.appendString("\n\t\t debugStr.appendString(\"\\n======================================\")")
                     
                     content.appendString("\n\t\treturn debugStr\n")
                     content.appendString("\t}\n")
