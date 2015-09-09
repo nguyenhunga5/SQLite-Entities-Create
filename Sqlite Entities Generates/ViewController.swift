@@ -162,19 +162,21 @@ class ViewController: NSViewController {
                     var columnRealNames = [String]()
                     var columnTypes = [String]()
                     var columnNullable = [Bool]()
+                    var columnNotNull = [String]()
                     var primaryKey = [String]()
                     var columnDefaultValue = [AnyObject]()
                     
                     while columnResultSet.next() {
                         var name = columnResultSet.stringForColumn("name")
                         columnRealNames.append(name)
-                        insertStr += " \(name),"
+                        insertStr += " `\(name)`,"
                         columnNames.append(self.checkInvalidName(name))
                         columnTypes.append(self.mappingData(columnResultSet.stringForColumn("type")))
                         
                         // Check us notnull
                         if columnResultSet.intForColumn("notnull") == 1 {
                             columnNullable.append(false)
+                            columnNotNull.append(self.checkInvalidName(name))
                         } else {
                             columnNullable.append(true)
                         }
@@ -204,7 +206,7 @@ class ViewController: NSViewController {
                         content.appendString("\tstatic let k\(self.convertToNiceName(realName)) = \"\(realName)\"\n")
                         let checkIsPrimariKey = primaryKey.filter{ $0 == realName }
                         if checkIsPrimariKey.count == 0 {
-                            updateStr += " " + realName + " = ?,"
+                            updateStr += " `" + realName + "` = ?,"
                         }
                     }
                     
@@ -312,7 +314,6 @@ class ViewController: NSViewController {
                     insertStr += ");"
                     VALUES.removeAtIndex(VALUES.endIndex.predecessor())
                     
-                    updateStr.removeAtIndex(updateStr.endIndex.predecessor());
                     updateStr += " WHERE "
                     UPDATEVALUES.removeAtIndex(UPDATEVALUES.endIndex.predecessor())
                     
@@ -329,7 +330,7 @@ class ViewController: NSViewController {
                         content.appendString("\t\tcols.append(\"\(pk)\")")
                         
                         // For Update
-                        updateStr += " \(pk) = ? AND"
+                        updateStr += " `\(pk)` = ? AND"
                         
                         UPDATEVALUES += ", "
                         for i in 0..<columnRealNames.count {
@@ -354,11 +355,23 @@ class ViewController: NSViewController {
                     content.appendString("\toverride func insertToDB(db : FMDatabase) -> Bool {")
                     content.appendString("\n")
                     content.appendString("\t\tlet sqlCommand = \"\(insertStr)\"\n\n")
-                    content.appendString("\t\tvar args = [AnyObject?]()\n")
+                    content.appendString("\t\tvar args = [AnyObject]()\n")
                     
                     valueArray = VALUES.componentsSeparatedByString(",")
+                    var rightNameOfColumn: String
                     for nameOfColumn in valueArray {
-                        content.appendString("\t\targs.append(\(nameOfColumn.stringByTrimmingCharactersInSet(NSCharacterSet.whitespaceAndNewlineCharacterSet())))\n")
+                        rightNameOfColumn = nameOfColumn.stringByTrimmingCharactersInSet(NSCharacterSet.whitespaceAndNewlineCharacterSet())
+                        if columnNotNull.filter({ rightNameOfColumn == $0 }).count > 0 {
+                            content.appendString("\t\targs.append(\(rightNameOfColumn))\n")
+                        } else {
+                            /* content.appendString("\t\tif \(rightNameOfColumn) != nil {\n")
+                            content.appendString("\t\t\targs.append(\(rightNameOfColumn))\n")
+                            content.appendString("\t\t} else {\n")
+                            content.appendString("\t\t\targs.append(NSNull())\n")
+                            content.appendString("\t\t}\n") */
+                            
+                            content.appendString("\t\targs.append(self.checkNil(\(rightNameOfColumn)))\n")
+                        }
                     }
                     
                     
@@ -368,11 +381,22 @@ class ViewController: NSViewController {
                     // Update method
                     content.appendString("\n\toverride func updateToDB(db : FMDatabase) -> Bool {\n")
                     content.appendString("\t\tvar sqlCommand = \"\(updateStr)\"\n\n")
-                    content.appendString("\t\tvar args = [AnyObject?]()\n")
+                    content.appendString("\t\tvar args = [AnyObject]()\n")
                     
                     valueArray = UPDATEVALUES.componentsSeparatedByString(",")
                     for nameOfColumn in valueArray {
-                        content.appendString("\t\targs.append(\(nameOfColumn.stringByTrimmingCharactersInSet(NSCharacterSet.whitespaceAndNewlineCharacterSet())))\n")
+                        rightNameOfColumn = nameOfColumn.stringByTrimmingCharactersInSet(NSCharacterSet.whitespaceAndNewlineCharacterSet())
+                        if columnNotNull.filter({ rightNameOfColumn == $0 }).count > 0 {
+                            content.appendString("\t\targs.append(\(rightNameOfColumn))\n")
+                        } else {
+                            /* content.appendString("\t\tif \(rightNameOfColumn) != nil {\n")
+                            content.appendString("\t\t\targs.append(\(rightNameOfColumn))\n")
+                            content.appendString("\t\t} else {\n")
+                            content.appendString("\t\t\targs.append(NSNull())\n")
+                            content.appendString("\t\t}\n") */
+                            
+                            content.appendString("\t\targs.append(self.checkNil(\(rightNameOfColumn)))\n")
+                        }
                     }
                     
                     content.appendString("\t\tlet result = db.executeUpdate(sqlCommand, withArgumentsInArray: args)\n")
