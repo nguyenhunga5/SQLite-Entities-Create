@@ -21,7 +21,7 @@ class ViewController: NSViewController {
         return projectTextField.stringValue
     }
         
-    let author: String {
+    var author: String {
         return authorTextField.stringValue
     }
     
