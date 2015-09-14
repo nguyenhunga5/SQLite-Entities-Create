@@ -224,7 +224,7 @@ class ViewController: NSViewController {
                     updateStr.removeAtIndex(updateStr.endIndex.predecessor())
                     
                     var subscriptGetStr = "switch key {\n"
-                    var subscriptSetStr = "if newValue == nil {\n\t\t\t\treturn\n\t\t\t}\n\t\t\tswitch key {\n"
+                    var subscriptSetStr = "if newValue == nil || newValue.isKindOfClass(NSNull.classForCoder()) {\n\t\t\t\treturn\n\t\t\t}\n\t\t\tswitch key {\n"
                     
                     // Create Properties
                     let numberFormatter = NSNumberFormatter()
@@ -362,7 +362,7 @@ class ViewController: NSViewController {
                     var valueArray: [String]
                     // Generates insert, update, delete
                     content.appendString("\n\t// MARK: - Database Support\n")
-                    content.appendString("\n\toverride class func getObjects(columns: [String]!, conditions : [PMSQueryCondition]?, orderBy: String? = nil, ascending: Bool = true, db : FMDatabase) ->[PMSBaseEntity]? {\n\t\treturn super.getObjects(columns, conditions: conditions, orderBy: orderBy, ascending: ascending, db: db)\n\t}\n")
+                    content.appendString("\n\toverride class func getObjects(columns: [String]!, conditions : [PMSQueryCondition]?, orderBy: String? = nil, ascending: Bool = true, db : FMDatabase) ->[PMSBaseEntity]? {\n\t\treturn super.getObjects(columns, conditions: conditions, orderBy: orderBy, ascending: ascending, db: db)\n\t}\n\n")
                     content.appendString("\toverride func insertToDB(db : FMDatabase) -> Bool {")
                     content.appendString("\n")
                     content.appendString("\t\tlet sqlCommand = \"\(insertStr)\"\n\n")
