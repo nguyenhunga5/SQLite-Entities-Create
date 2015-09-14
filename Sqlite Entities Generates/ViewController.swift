@@ -213,7 +213,7 @@ class ViewController: NSViewController {
                     updateStr.removeAtIndex(updateStr.endIndex.predecessor())
                     
                     var subscriptGetStr = "switch key {\n"
-                    var subscriptSetStr = "switch key {\n"
+                    var subscriptSetStr = "if newValue == nil {\n\t\t\t\treturn\n\t\t\t}\n\t\t\tswitch key {\n"
                     
                     // Create Properties
                     let numberFormatter = NSNumberFormatter()
@@ -306,8 +306,8 @@ class ViewController: NSViewController {
                         subscriptSetStr += "\n\t\t\tcase \(className).k\(self.convertToNiceName(columnRealNames[i])) :\n\t\t\t\tself.\(name) = newValue as! \(columnTypes[i])"
                     }
                     
-                    subscriptGetStr += "\n\t\t\tdefault:\n\t\t\t\treturn nil\n\t\t\t}"
-                    subscriptSetStr += "\n\t\t\tdefault:\n\t\t\t\tprintln(\"\(className) don't have property for key: \\(key) value: \\(newValue)\")\n\t\t\t}"
+                    subscriptGetStr += "\n\t\t\tdefault:\n\t\t\t\treturn super[key]\n\t\t\t}"
+                    subscriptSetStr += "\n\t\t\tdefault:\n\t\t\t\tsuper[key] = newValue\n\t\t\t}"
                     
                     
                     insertStr.removeAtIndex(insertStr.endIndex.predecessor())
@@ -351,7 +351,7 @@ class ViewController: NSViewController {
                     var valueArray: [String]
                     // Generates insert, update, delete
                     content.appendString("\n\t// MARK: - Database Support\n")
-                    content.appendString("\n\toverride class func getObjects<T : Mappable>() ->[T]? {\n\t\treturn nil\n\t}\n")
+                    content.appendString("\n\toverride class func getObjects(columns: [String]!, conditions : [PMSQueryCondition]?, orderBy: String? = nil, ascending: Bool = true, db : FMDatabase) ->[PMSBaseEntity]? {\n\t\treturn super.getObjects(columns, conditions: conditions, orderBy: orderBy, ascending: ascending, db: db)\n\t}\n")
                     content.appendString("\toverride func insertToDB(db : FMDatabase) -> Bool {")
                     content.appendString("\n")
                     content.appendString("\t\tlet sqlCommand = \"\(insertStr)\"\n\n")
