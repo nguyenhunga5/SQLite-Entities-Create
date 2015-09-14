@@ -12,9 +12,19 @@ class ViewController: NSViewController {
 
     static let dataType = "BIGINT:NSNumber|BIT:NSNumber|BOOL:NSNumber|BOOLEAN:NSNumber|INT:NSNumber|INT2:NSNumber|INT8:NSNumber|INTEGER:NSNumber|MEDIUMINT:NSNumber|SMALLINT:NSNumber|TINYINT:NSNumber|DECIMAL:NSDecimalNumber|DOUBLE:NSDecimalNumber|DOUBLE PRECISION:NSDecimalNumber|FLOAT:NSDecimalNumber|NUMERIC:NSDecimalNumber|REAL:NSDecimalNumber|CHAR:String|CHARACTER:String|CLOB:String|NATIONAL VARYING CHARACTER:String|NATIVE CHARACTER:String|NCHAR:String|NVARCHAR:String|TEXT:String|VARCHAR:String|VARIANT:String|VARYING CHARACTER:String|BINARY:NSData|BLOB:NSData|VARBINARY:NSData|NULL:NSNull|DATE:NSDate|DATETIME:NSDate|TIME:NSDate|TIMESTAMP:NSDate|MEDIUMTEXT:String".componentsSeparatedByString("|")
     
+    
+    @IBOutlet weak var authorTextField: NSTextField!
+    @IBOutlet weak var projectTextField: NSTextField!
+    
     var dataTypeDict = [String : String]()
-    let application = "PMS"
-    let author = "Hung Nguyen Thanh"
+    var application: String {
+        return projectTextField.stringValue
+    }
+        
+    var author: String {
+        return authorTextField.stringValue
+    }
+    
     let dateFormat = NSDateFormatter()
     let invalidType = ["alloc", "autorelease", "class", "columns", "conformsToProtocol", "dataSource", "dealloc", "delegate", "delete", "description", "hash", "hashCode", "id", "init", "isAutoIncremented", "isEqual", "isKindOfClass", "isMemberOfClass", "isProxy", "isSaveable", "load", "new", "performSelector", "primaryKey", "release", "respondsToSelector", "retain", "retainCount", "save", "saved", "self", "superclass", "table", "zone", "default", "var", "let"]
 
@@ -99,6 +109,7 @@ class ViewController: NSViewController {
                 parserObjectString.appendString("// \(self.application)\n")
                 parserObjectString.appendString("//\n")
                 parserObjectString.appendString("// Created by \(self.author) on \(self.createDate)\n")
+                parserObjectString.appendString("// SQLite Entities Create: NguyenHungA5 \n")
                 parserObjectString.appendString("// Copyright \(self.createYear) \(self.author). All rights reserved.\n")
                 
                 parserObjectString.appendString("//\n")
