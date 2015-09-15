@@ -485,7 +485,11 @@ class ViewController: NSViewController {
                 }
                 
                 parserObjectString.appendString("\t\tdefault:\n\t\t\tprintln(\"Don't have table: \\(tableName)\")\n\t\t}\n\t\treturn arr\n\t}\n}")
-                parserObjectString.writeToFile(dirPath + "/PMSParserTableDataHelper.swift", atomically: true, encoding: NSUTF8StringEncoding, error: nil)
+                parserObjectString.writeToFile(dirPath + "/\(self.application)ParserTableDataHelper.swift", atomically: true, encoding: NSUTF8StringEncoding, error: nil)
+                
+                
+                let baseTemplate: String = String(contentsOfFile: NSBundle.mainBundle().pathForResource("BaseEntity.swift", ofType: "template")!, encoding: NSUTF8StringEncoding, error: nil)!
+                baseTemplate.writeToFile(dirPath + "/PMSBaseEntity.swift", atomically: true, encoding: NSUTF8StringEncoding, error: nil)
                 
                 resultTable.close()
                 startButton.enabled = true

@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		82946F7E1BA7FE3800038D17 /* BaseEntity.swift.template in Resources */ = {isa = PBXBuildFile; fileRef = 82946F7D1BA7FE3800038D17 /* BaseEntity.swift.template */; };
 		82CD4FCC1B8AB12300FC1D31 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 82CD4FCB1B8AB12300FC1D31 /* AppDelegate.swift */; };
 		82CD4FCE1B8AB12300FC1D31 /* ViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 82CD4FCD1B8AB12300FC1D31 /* ViewController.swift */; };
 		82CD4FD01B8AB12300FC1D31 /* Images.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 82CD4FCF1B8AB12300FC1D31 /* Images.xcassets */; };
@@ -31,6 +32,7 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		82946F7D1BA7FE3800038D17 /* BaseEntity.swift.template */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = BaseEntity.swift.template; path = Base/BaseEntity.swift.template; sourceTree = "<group>"; };
 		82CD4FC61B8AB12300FC1D31 /* Sqlite Entities Generates.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Sqlite Entities Generates.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		82CD4FCA1B8AB12300FC1D31 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		82CD4FCB1B8AB12300FC1D31 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
@@ -74,6 +76,14 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		82946F7A1BA7FDCC00038D17 /* Base */ = {
+			isa = PBXGroup;
+			children = (
+				82946F7D1BA7FE3800038D17 /* BaseEntity.swift.template */,
+			);
+			name = Base;
+			sourceTree = "<group>";
+		};
 		82CD4FBD1B8AB12300FC1D31 = {
 			isa = PBXGroup;
 			children = (
@@ -96,6 +106,7 @@
 		82CD4FC81B8AB12300FC1D31 /* Sqlite Entities Generates */ = {
 			isa = PBXGroup;
 			children = (
+				82946F7A1BA7FDCC00038D17 /* Base */,
 				82CD4FE81B8AB35A00FC1D31 /* library */,
 				82CD4FCB1B8AB12300FC1D31 /* AppDelegate.swift */,
 				82CD4FCD1B8AB12300FC1D31 /* ViewController.swift */,
@@ -238,6 +249,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				82946F7E1BA7FE3800038D17 /* BaseEntity.swift.template in Resources */,
 				82CD4FD01B8AB12300FC1D31 /* Images.xcassets in Resources */,
 				82CD4FD31B8AB12300FC1D31 /* Main.storyboard in Resources */,
 			);
@@ -456,6 +468,7 @@
 				82CD4FE41B8AB12300FC1D31 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
 		};
 		82CD4FE51B8AB12300FC1D31 /* Build configuration list for PBXNativeTarget "Sqlite Entities GeneratesTests" */ = {
 			isa = XCConfigurationList;
@@ -464,6 +477,7 @@
 				82CD4FE71B8AB12300FC1D31 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
 	};
