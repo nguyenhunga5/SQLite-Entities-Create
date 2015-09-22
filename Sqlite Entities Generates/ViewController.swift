@@ -446,32 +446,24 @@ class ViewController: NSViewController {
                     
                     content.appendString("\toverride func mapping(map: Map) {\n\n")
                     content.appendString("\t\tsuper.mapping(map)\n")
-//                    content.appendString("\t\tvar tempValue: AnyObject?\n")
+                    content.appendString("\t\tvar tempDateValue: NSDate!\n")
                     for i in 0..<columnRealNames.count {
                         let realName = columnRealNames[i]
                         
-                        /* if columnNullable[i] { */
+                        if columnTypes[i] != "NSDate" {
                             content.appendString("\t\t\(columnNames[i]) <- map[\(className).k\(self.convertToNiceName(columnRealNames[i]))]\n")
-                        /* } else {
-                            var stringInitValue = columnTypes[i] + "("
-                            if columnTypes[i] == "NSDecimalNumber" {
-                                stringInitValue += "double: 0.0"
-                            } else if columnTypes[i] == "NSNumber" {
-                                stringInitValue += "integer: 0"
+                        } else {
+                            content.appendString("\t\ttempDateValue = tryParserDate(map[\(className).k\(self.convertToNiceName(columnRealNames[i]))].value())\n")
+                            
+                            if columnNullable[i] {
+                                content.appendString("\t\t\(columnNames[i]) = tempDateValue\n")
+                            } else {
+                                content.appendString("\t\tif tempDateValue != nil {\n")
+                                content.appendString("\t\t\t\(columnNames[i]) = tempDateValue\n")
+                                content.appendString("\t\t} else {\n\t\t\t\(columnNames[i]) = NSDate()\n\t\t}\n")
                             }
                             
-                            stringInitValue += ")"
-                            
-                            content.appendString("\n\t\ttempValue <- map[\(className).k\(self.convertToNiceName(columnRealNames[i]))]\n")
-                            content.appendString("\t\tif tempValue == nil {\n")
-                            
-                            content.appendString("\t\t\t\(columnNames[i]) = \(stringInitValue)\n")
-                            
-                            content.appendString("\t\t} else {\n")
-                            content.appendString("\t\t\t\(columnNames[i]) = tempValue as! \(columnTypes[i])\n")
-                            
-                            content.appendString("\t\t}\n\n")
-                        } */
+                        }
                         
                     }
                     content.appendString("\t}\n")

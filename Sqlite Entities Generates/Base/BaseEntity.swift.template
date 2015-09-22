@@ -306,4 +306,29 @@ class PMSBaseEntity: NSObject, Mappable, Printable {
         
         return value
     }
+    
+    func tryParserDate(dateValue: AnyObject?) -> NSDate! {
+        if let value = dateValue as? NSDate {
+            return value
+        } else if let value = dateValue as? String {
+            
+            let dateFormat = NSDateFormatter()
+            dateFormat.dateFormat = SERVER_DATE_FORMAT
+            let date = dateFormat.dateFromString(value)
+            return date
+        } else if let value = dateValue as? NSNumber  {
+            let doubleValue = value.doubleValue
+            if doubleValue == 0 {
+                return nil
+            }
+            let date = NSDate(timeIntervalSince1970: doubleValue)
+            return date
+        } else if let value = dateValue as? Double {
+              let date = NSDate(timeIntervalSince1970: value)
+            return date
+        }
+        
+        return nil
+    }
+    
 }
