@@ -225,7 +225,7 @@ class ViewController: NSViewController {
                     updateStr.removeAtIndex(updateStr.endIndex.predecessor())
                     
                     var subscriptGetStr = "switch key {\n"
-                    var subscriptSetStr = "switch key {\n"
+                    var subscriptSetStr = "if newValue == nil || newValue.isKindOfClass(NSNull.classForCoder()) {\n\t\t\t\treturn\n\t\t\t}\n\t\t\tswitch key {\n"
                     
                     // Create Properties
                     let numberFormatter = NSNumberFormatter()
@@ -318,8 +318,8 @@ class ViewController: NSViewController {
                         subscriptSetStr += "\n\t\t\tcase \(className).k\(self.convertToNiceName(columnRealNames[i])) :\n\t\t\t\tself.\(name) = newValue as! \(columnTypes[i])"
                     }
                     
-                    subscriptGetStr += "\n\t\t\tdefault:\n\t\t\t\treturn nil\n\t\t\t}"
-                    subscriptSetStr += "\n\t\t\tdefault:\n\t\t\t\tprintln(\"\(className) don't have property for key: \\(key) value: \\(newValue)\")\n\t\t\t}"
+                    subscriptGetStr += "\n\t\t\tdefault:\n\t\t\t\treturn super[key]\n\t\t\t}"
+                    subscriptSetStr += "\n\t\t\tdefault:\n\t\t\t\tsuper[key] = newValue\n\t\t\t}"
                     
                     
                     insertStr.removeAtIndex(insertStr.endIndex.predecessor())
@@ -363,7 +363,7 @@ class ViewController: NSViewController {
                     var valueArray: [String]
                     // Generates insert, update, delete
                     content.appendString("\n\t// MARK: - Database Support\n")
-                    content.appendString("\n\toverride class func getObjects<T : Mappable>() ->[T]? {\n\t\treturn nil\n\t}\n")
+                    content.appendString("\n\toverride class func getObjects(columns: [String]!, conditions : [PMSQueryCondition]?, orderBy: String? = nil, ascending: Bool = true, db : FMDatabase) ->[PMSBaseEntity]? {\n\t\treturn super.getObjects(columns, conditions: conditions, orderBy: orderBy, ascending: ascending, db: db)\n\t}\n\n")
                     content.appendString("\toverride func insertToDB(db : FMDatabase) -> Bool {")
                     content.appendString("\n")
                     content.appendString("\t\tlet sqlCommand = \"\(insertStr)\"\n\n")
@@ -447,32 +447,24 @@ class ViewController: NSViewController {
                     
                     content.appendString("\toverride func mapping(map: Map) {\n\n")
                     content.appendString("\t\tsuper.mapping(map)\n")
-//                    content.appendString("\t\tvar tempValue: AnyObject?\n")
+                    content.appendString("\t\tvar tempDateValue: NSDate!\n")
                     for i in 0..<columnRealNames.count {
                         let realName = columnRealNames[i]
                         
-                        /* if columnNullable[i] { */
+                        if columnTypes[i] != "NSDate" {
                             content.appendString("\t\t\(columnNames[i]) <- map[\(className).k\(self.convertToNiceName(columnRealNames[i]))]\n")
-                        /* } else {
-                            var stringInitValue = columnTypes[i] + "("
-                            if columnTypes[i] == "NSDecimalNumber" {
-                                stringInitValue += "double: 0.0"
-                            } else if columnTypes[i] == "NSNumber" {
-                                stringInitValue += "integer: 0"
+                        } else {
+                            content.appendString("\t\ttempDateValue = tryParserDate(map[\(className).k\(self.convertToNiceName(columnRealNames[i]))].value())\n")
+                            
+                            if columnNullable[i] {
+                                content.appendString("\t\t\(columnNames[i]) = tempDateValue\n")
+                            } else {
+                                content.appendString("\t\tif tempDateValue != nil {\n")
+                                content.appendString("\t\t\t\(columnNames[i]) = tempDateValue\n")
+                                content.appendString("\t\t} else {\n\t\t\t\(columnNames[i]) = NSDate()\n\t\t}\n")
                             }
                             
-                            stringInitValue += ")"
-                            
-                            content.appendString("\n\t\ttempValue <- map[\(className).k\(self.convertToNiceName(columnRealNames[i]))]\n")
-                            content.appendString("\t\tif tempValue == nil {\n")
-                            
-                            content.appendString("\t\t\t\(columnNames[i]) = \(stringInitValue)\n")
-                            
-                            content.appendString("\t\t} else {\n")
-                            content.appendString("\t\t\t\(columnNames[i]) = tempValue as! \(columnTypes[i])\n")
-                            
-                            content.appendString("\t\t}\n\n")
-                        } */
+                        }
                         
                     }
                     content.appendString("\t}\n")
@@ -486,7 +478,11 @@ class ViewController: NSViewController {
                 }
                 
                 parserObjectString.appendString("\t\tdefault:\n\t\t\tprintln(\"Don't have table: \\(tableName)\")\n\t\t}\n\t\treturn arr\n\t}\n}")
-                parserObjectString.writeToFile(dirPath + "/PMSParserTableDataHelper.swift", atomically: true, encoding: NSUTF8StringEncoding, error: nil)
+                parserObjectString.writeToFile(dirPath + "/\(self.application)ParserTableDataHelper.swift", atomically: true, encoding: NSUTF8StringEncoding, error: nil)
+                
+                
+                let baseTemplate: String = String(contentsOfFile: NSBundle.mainBundle().pathForResource("BaseEntity.swift", ofType: "template")!, encoding: NSUTF8StringEncoding, error: nil)!
+                baseTemplate.writeToFile(dirPath + "/PMSBaseEntity.swift", atomically: true, encoding: NSUTF8StringEncoding, error: nil)
                 
                 resultTable.close()
                 startButton.enabled = true
