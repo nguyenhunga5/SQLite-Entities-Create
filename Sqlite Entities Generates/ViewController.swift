@@ -15,6 +15,7 @@ class ViewController: NSViewController {
     
     @IBOutlet weak var authorTextField: NSTextField!
     @IBOutlet weak var projectTextField: NSTextField!
+    @IBOutlet weak var userNSNumberCheckBok: NSButton!
     
     var dataTypeDict = [String : String]()
     var application: String {
@@ -525,6 +526,12 @@ class ViewController: NSViewController {
         let range = dataType.rangeOfString("(", options: NSStringCompareOptions.CaseInsensitiveSearch, range: Range<String.Index>(start: dataType.startIndex, end: dataType.endIndex), locale: nil)
         var fixDataType = range == nil ? dataType : dataType.substringToIndex(range!.endIndex.predecessor())
         var mappedDataType = self.dataTypeDict[fixDataType.uppercaseString]
+        
+        if userNSNumberCheckBok.state == NSOnState {
+            if mappedDataType == "NSDecimalNumber" {
+                mappedDataType = "NSNumber"
+            }
+        }
         
         if mappedDataType == nil {
             mappedDataType = "AnyObject"
