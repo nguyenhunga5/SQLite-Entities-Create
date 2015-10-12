@@ -448,7 +448,7 @@ class ViewController: NSViewController {
                     
                     // Mapping
                     content.appendString("\n\t// MARK: - Mapping\n")
-                    content.appendString("\trequired init?(_ map: Map) {\n\t\tsuper.init(map)\n\t}\n\n")
+//                    content.appendString("\trequired init?(_ map: Map) {\n\t\tsuper.init(map)\n\t}\n\n")
                     
                     content.appendString("\toverride func mapping(map: Map) {\n\n")
                     content.appendString("\t\tsuper.mapping(map)\n")
