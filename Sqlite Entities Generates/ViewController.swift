@@ -15,6 +15,7 @@ class ViewController: NSViewController {
     
     @IBOutlet weak var authorTextField: NSTextField!
     @IBOutlet weak var projectTextField: NSTextField!
+    @IBOutlet weak var userNSNumberCheckBok: NSButton!
     
     var dataTypeDict = [String : String]()
     var application: String {
@@ -26,7 +27,7 @@ class ViewController: NSViewController {
     }
     
     let dateFormat = NSDateFormatter()
-    let invalidType = ["alloc", "autorelease", "class", "columns", "conformsToProtocol", "dataSource", "dealloc", "delegate", "delete", "description", "hash", "hashCode", "id", "init", "isAutoIncremented", "isEqual", "isKindOfClass", "isMemberOfClass", "isProxy", "isSaveable", "load", "new", "performSelector", "primaryKey", "release", "respondsToSelector", "retain", "retainCount", "save", "saved", "self", "superclass", "table", "zone", "default", "var", "let"]
+    let invalidType = ["alloc", "autorelease", "class", "columns", "conformsToProtocol", "dataSource", "dealloc", "delegate", "delete", "description", "hash", "hashCode", "id", "init", "isAutoIncremented", "isEqual", "isKindOfClass", "isMemberOfClass", "isProxy", "isSaveable", "load", "new", "performSelector", "primaryKey", "release", "respondsToSelector", "retain", "retainCount", "save", "saved", "self", "superclass", "table", "zone", "default", "var", "let", "repeat"]
 
     var dataSource : String!
     
@@ -92,7 +93,11 @@ class ViewController: NSViewController {
             
             let db = FMDatabase(path: self.filePathTextField.stringValue)
             if db.open() {
-                self.dataSource = self.filePathTextField.stringValue.lastPathComponent.stringByDeletingPathExtension
+                var dataSource: NSString = self.filePathTextField.stringValue as NSString
+                dataSource = dataSource.lastPathComponent
+                dataSource = dataSource.stringByDeletingPathExtension
+                
+                self.dataSource = dataSource as String
                 let resultTable = db.executeQuery("SELECT [name] FROM [sqlite_master] WHERE [type] = 'table' AND [name] NOT IN ('sqlite_sequence');", withArgumentsInArray: nil)
                 
                 let fileManager = NSFileManager.defaultManager()
@@ -394,7 +399,7 @@ class ViewController: NSViewController {
                     
                     // Update method
                     content.appendString("\n\toverride func updateToDB(db : FMDatabase) -> Bool {\n")
-                    content.appendString("\t\tvar sqlCommand = \"\(updateStr)\"\n\n")
+                    content.appendString("\t\tlet sqlCommand = \"\(updateStr)\"\n\n")
                     content.appendString("\t\tvar args = [AnyObject]()\n")
                     
                     valueArray = UPDATEVALUES.componentsSeparatedByString(",")
@@ -420,7 +425,7 @@ class ViewController: NSViewController {
                     // Debug
                     content.appendString("\n\t// MARK: - Debug\n")
                     content.appendString("\toverride func debugQuickLookObject() -> AnyObject  {\n")
-                    content.appendString("\t\tvar debugStr = NSMutableString(string: \"================== \(className) ===================\")")
+                    content.appendString("\t\tlet debugStr = NSMutableString(string: \"================== \(className) ===================\")")
                     
                     for name in columnNames {
                         content.appendString("\n\t\tdebugStr.appendString(\"\\n\\t\(name) : \\(\(name))\")")
@@ -443,9 +448,7 @@ class ViewController: NSViewController {
                     
                     // Mapping
                     content.appendString("\n\t// MARK: - Mapping\n")
-                    content.appendString("\toverride class func newInstance(map: Map) -> Mappable? {\n\n")
-                    content.appendString("\t\treturn \(className)()\n")
-                    content.appendString("\t}\n")
+                    content.appendString("\trequired init?(_ map: Map) {\n\t\tsuper.init(map)\n\t}\n\n")
                     
                     content.appendString("\toverride func mapping(map: Map) {\n\n")
                     content.appendString("\t\tsuper.mapping(map)\n")
@@ -533,6 +536,12 @@ class ViewController: NSViewController {
         let range = dataType.rangeOfString("(", options: NSStringCompareOptions.CaseInsensitiveSearch, range: Range<String.Index>(start: dataType.startIndex, end: dataType.endIndex), locale: nil)
         let fixDataType = range == nil ? dataType : dataType.substringToIndex(range!.endIndex.predecessor())
         var mappedDataType = self.dataTypeDict[fixDataType.uppercaseString]
+        
+        if userNSNumberCheckBok.state == NSOnState {
+            if mappedDataType == "NSDecimalNumber" {
+                mappedDataType = "NSNumber"
+            }
+        }
         
         if mappedDataType == nil {
             mappedDataType = "AnyObject"
