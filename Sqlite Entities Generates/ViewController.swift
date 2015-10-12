@@ -65,7 +65,7 @@ class ViewController: NSViewController {
 
     @IBAction func browserAction(sender: AnyObject) {
         
-        var fileOpenDialog = NSOpenPanel()
+        let fileOpenDialog = NSOpenPanel()
         fileOpenDialog.allowsMultipleSelection = false
         fileOpenDialog.canChooseDirectories = false
         fileOpenDialog.canChooseFiles = true
@@ -90,7 +90,7 @@ class ViewController: NSViewController {
         startButton.enabled = false
         dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), { () -> Void in
             
-            var db = FMDatabase(path: self.filePathTextField.stringValue)
+            let db = FMDatabase(path: self.filePathTextField.stringValue)
             if db.open() {
                 self.dataSource = self.filePathTextField.stringValue.lastPathComponent.stringByDeletingPathExtension
                 let resultTable = db.executeQuery("SELECT [name] FROM [sqlite_master] WHERE [type] = 'table' AND [name] NOT IN ('sqlite_sequence');", withArgumentsInArray: nil)
@@ -99,7 +99,10 @@ class ViewController: NSViewController {
                 let dirPath = fileManager.currentDirectoryPath + "/Entities"
                 
                 if !fileManager.fileExistsAtPath(dirPath) {
-                    fileManager.createDirectoryAtPath(dirPath, withIntermediateDirectories: true, attributes: nil, error: nil)
+                    do {
+                        try fileManager.createDirectoryAtPath(dirPath, withIntermediateDirectories: true, attributes: nil)
+                    } catch _ {
+                    }
                 }
                 
                 let parserObjectString = NSMutableString(string: "")
@@ -137,7 +140,7 @@ class ViewController: NSViewController {
                     
                     self.addStringToLog("Creating table \(tableName) className: \(className)")
                     
-                    var content : NSMutableString = NSMutableString()
+                    let content : NSMutableString = NSMutableString()
                     content.appendString("//\n")
                     content.appendString("// \(fileName)\n")
                     content.appendString("// \(self.application)\n")
@@ -178,7 +181,7 @@ class ViewController: NSViewController {
                     var columnDefaultValue = [AnyObject]()
                     
                     while columnResultSet.next() {
-                        var name = columnResultSet.stringForColumn("name")
+                        let name = columnResultSet.stringForColumn("name")
                         columnRealNames.append(name)
                         insertStr += " `\(name)`,"
                         columnNames.append(self.checkInvalidName(name))
@@ -354,7 +357,7 @@ class ViewController: NSViewController {
                     
                     // Remove AND in last string
                     
-                    updateStr.removeRange(advance(updateStr.endIndex.predecessor(), -3)...updateStr.endIndex.predecessor())
+                    updateStr.removeRange(updateStr.endIndex.predecessor().advancedBy(-3)...updateStr.endIndex.predecessor())
                     
                     content.appendString("\n\t\treturn cols\n")
                     content.appendString("\t}\n")
@@ -472,16 +475,25 @@ class ViewController: NSViewController {
                     // Close of class
                     content.appendString("}")
                     
-                    content.writeToFile(dirPath + "/\(fileName)", atomically: true, encoding: NSUTF8StringEncoding, error: nil)
+                    do {
+                        try content.writeToFile(dirPath + "/\(fileName)", atomically: true, encoding: NSUTF8StringEncoding)
+                    } catch _ {
+                    }
                     
                 }
                 
                 parserObjectString.appendString("\t\tdefault:\n\t\t\tprintln(\"Don't have table: \\(tableName)\")\n\t\t}\n\t\treturn arr\n\t}\n}")
-                parserObjectString.writeToFile(dirPath + "/\(self.application)ParserTableDataHelper.swift", atomically: true, encoding: NSUTF8StringEncoding, error: nil)
+                do {
+                    try parserObjectString.writeToFile(dirPath + "/\(self.application)ParserTableDataHelper.swift", atomically: true, encoding: NSUTF8StringEncoding)
+                } catch _ {
+                }
                 
                 
-                let baseTemplate: String = String(contentsOfFile: NSBundle.mainBundle().pathForResource("BaseEntity.swift", ofType: "template")!, encoding: NSUTF8StringEncoding, error: nil)!
-                baseTemplate.writeToFile(dirPath + "/PMSBaseEntity.swift", atomically: true, encoding: NSUTF8StringEncoding, error: nil)
+                let baseTemplate: String = try! String(contentsOfFile: NSBundle.mainBundle().pathForResource("BaseEntity.swift", ofType: "template")!, encoding: NSUTF8StringEncoding)
+                do {
+                    try baseTemplate.writeToFile(dirPath + "/PMSBaseEntity.swift", atomically: true, encoding: NSUTF8StringEncoding)
+                } catch _ {
+                }
                 
                 resultTable.close()
                 startButton.enabled = true
@@ -519,7 +531,7 @@ class ViewController: NSViewController {
     func mappingData(dataType : String) -> String {
         
         let range = dataType.rangeOfString("(", options: NSStringCompareOptions.CaseInsensitiveSearch, range: Range<String.Index>(start: dataType.startIndex, end: dataType.endIndex), locale: nil)
-        var fixDataType = range == nil ? dataType : dataType.substringToIndex(range!.endIndex.predecessor())
+        let fixDataType = range == nil ? dataType : dataType.substringToIndex(range!.endIndex.predecessor())
         var mappedDataType = self.dataTypeDict[fixDataType.uppercaseString]
         
         if mappedDataType == nil {
