@@ -18,13 +18,9 @@ class ViewController: NSViewController {
     @IBOutlet weak var userNSNumberCheckBok: NSButton!
     
     var dataTypeDict = [String : String]()
-    var application: String {
-        return projectTextField.stringValue
-    }
+    var application: String!
         
-    var author: String {
-        return authorTextField.stringValue
-    }
+    var author: String!
     
     let dateFormat = NSDateFormatter()
     let invalidType = ["alloc", "autorelease", "class", "columns", "conformsToProtocol", "dataSource", "dealloc", "delegate", "delete", "description", "hash", "hashCode", "id", "init", "isAutoIncremented", "isEqual", "isKindOfClass", "isMemberOfClass", "isProxy", "isSaveable", "load", "new", "performSelector", "primaryKey", "release", "respondsToSelector", "retain", "retainCount", "save", "saved", "self", "superclass", "table", "zone", "default", "var", "let", "repeat"]
@@ -56,6 +52,20 @@ class ViewController: NSViewController {
             dataTypeDict[dataType[0]] = dataType[1]
         }
         
+        let userDefault = NSUserDefaults.standardUserDefaults()
+        if let dbPath = userDefault.stringForKey("dbPath") {
+            self.filePathTextField.stringValue = dbPath
+        }
+        
+        if let author = userDefault.stringForKey("author") {
+            self.authorTextField.stringValue = author
+        }
+        
+        if let project = userDefault.stringForKey("project") {
+            self.projectTextField.stringValue = project
+        }
+        
+        userNSNumberCheckBok.state = userDefault.boolForKey("userNSNumber") ? NSOnState : NSOffState
     }
 
     override var representedObject: AnyObject? {
@@ -89,6 +99,23 @@ class ViewController: NSViewController {
     @IBAction func startAction(sender: AnyObject) {
         let startButton = sender as! NSButton
         startButton.enabled = false
+        self.author = self.authorTextField.stringValue
+        self.application = self.projectTextField.stringValue.trimString()
+        
+        let userDefault = NSUserDefaults.standardUserDefaults()
+        userDefault.setObject(self.filePathTextField.stringValue, forKey: "dbPath")
+        userDefault.setObject(self.author, forKey: "author")
+        userDefault.setObject(self.application, forKey: "project")
+        userDefault.setBool(self.userNSNumberCheckBok.state == NSOnState, forKey: "userNSNumber")
+        userDefault.synchronize()
+        
+        var applicationShortName = ""
+        self.application.componentsSeparatedByString(" ").forEach { (str) -> () in
+            if !str.isEmptyString() {
+                applicationShortName.append(str.uppercaseString.characters.first!)
+            }
+        }
+        
         dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), { () -> Void in
             
             let db = FMDatabase(path: self.filePathTextField.stringValue)
@@ -136,7 +163,7 @@ class ViewController: NSViewController {
                 
                 while resultTable.next() {
                     let tableName = resultTable.stringForColumn("name")
-                    var fileName = self.application + self.convertToNiceName(tableName)
+                    var fileName = applicationShortName + self.convertToNiceName(tableName)
                     let className = fileName
                     fileName += ".swift"
                     
@@ -452,14 +479,22 @@ class ViewController: NSViewController {
                     
                     content.appendString("\toverride func mapping(map: Map) {\n\n")
                     content.appendString("\t\tsuper.mapping(map)\n")
-                    content.appendString("\t\tvar tempDateValue: NSDate!\n")
+                    
+                    if columnTypes.filter({
+                        $0 == "NSDate"
+                    }).count != 0 {
+                        content.appendString("\t\tvar tempDateValue: NSDate!\n")
+                    }
+                    
                     for i in 0..<columnRealNames.count {
                         let realName = columnRealNames[i]
                         
-                        if columnTypes[i] != "NSDate" {
-                            content.appendString("\t\t\(columnNames[i]) <- map[\(className).k\(self.convertToNiceName(columnRealNames[i]))]\n")
-                        } else {
-                            content.appendString("\t\ttempDateValue = tryParserDate(map[\(className).k\(self.convertToNiceName(columnRealNames[i]))].value())\n")
+                        if columnTypes[i] == "String" {  // This is hardcode because server sometime return NSNumber for String column
+                            
+                            content.appendString("\t\t\(columnNames[i]) = tryParserText(map[\(className).k\(self.convertToNiceName(realName))].value()) // This is hardcode because server sometime return NSNumber for String column\n")
+                            
+                        } else if columnTypes[i] == "NSDate" {
+                            content.appendString("\t\ttempDateValue = tryParserDate(map[\(className).k\(self.convertToNiceName(realName))].value())\n")
                             
                             if columnNullable[i] {
                                 content.appendString("\t\t\(columnNames[i]) = tempDateValue\n")
@@ -469,6 +504,8 @@ class ViewController: NSViewController {
                                 content.appendString("\t\t} else {\n\t\t\t\(columnNames[i]) = NSDate()\n\t\t}\n")
                             }
                             
+                        } else {
+                            content.appendString("\t\t\(columnNames[i]) <- map[\(className).k\(self.convertToNiceName(realName))]\n")
                         }
                         
                     }
@@ -485,9 +522,9 @@ class ViewController: NSViewController {
                     
                 }
                 
-                parserObjectString.appendString("\t\tdefault:\n\t\t\tprintln(\"Don't have table: \\(tableName)\")\n\t\t}\n\t\treturn arr\n\t}\n}")
+                parserObjectString.appendString("\t\tdefault:\n\t\t\tprint(\"Don't have table: \\(tableName)\")\n\t\t}\n\t\treturn arr\n\t}\n}")
                 do {
-                    try parserObjectString.writeToFile(dirPath + "/\(self.application)ParserTableDataHelper.swift", atomically: true, encoding: NSUTF8StringEncoding)
+                    try parserObjectString.writeToFile(dirPath + "/\(applicationShortName)ParserTableDataHelper.swift", atomically: true, encoding: NSUTF8StringEncoding)
                 } catch _ {
                 }
                 
@@ -505,7 +542,7 @@ class ViewController: NSViewController {
     }
     
     @IBAction func clearAction(sender: AnyObject) {
-        
+        self.logTextView.string = ""
     }
     
     func checkInvalidName(name : String) -> String {

@@ -3,7 +3,7 @@
 //  PMS
 //
 //  Created by Nguyen Thanh Hung on 8/14/15.
-//
+//  SQLite Entities Create: NguyenHungA5
 //
 
 import UIKit
@@ -19,8 +19,12 @@ public enum PMSSQLCondition : String {
     case IS = "IS"
     case NULL = "NULL"
     case NOT = "NOT"
-    case EQUAL = "="
+    case EQUAL = "=="
     case NOT_EQUAL = "!="
+    case GREATER_THAN = ">"
+    case GREATER_THAN_OR_EQUAL_TO = ">="
+    case LESS_THAN = "<"
+    case LESS_THAN_OR_EQUAL_TO = "<="
     
     static func multipleCondition(conditions: [PMSSQLCondition]!) -> String {
         var result = ""
@@ -37,17 +41,31 @@ public struct PMSQueryCondition {
     var key: String
     var value: AnyObject!
     var conditions: [PMSSQLCondition]
+    
+    init(combine: PMSSQLCondition, key: String, value: AnyObject!, conditions: [PMSSQLCondition]) {
+        self.combine = combine
+        self.key = key
+        self.value = value
+        self.conditions = conditions
+    }
 }
 
-class PMSBaseEntity: NSObject, Mappable, Printable {
+typealias PMSQueryLimit = (limit: Int, offset: Int)
+
+
+class PMSBaseEntity: NSObject, Mappable {
     
     var map : Map?
     
-    lazy var unknownProperties = NSMutableDictionary()
+    lazy var unknownProperties = [String: AnyObject]()
+    
+    override init() {
+        super.init()
+    }
     
     // MARK: - Mappable
-    class func newInstance(map: Map) -> Mappable? {
-        return PMSBaseEntity()
+    required init?(_ map: Map) {
+        super.init()
     }
     
     func mapping(map: Map) {
@@ -55,10 +73,15 @@ class PMSBaseEntity: NSObject, Mappable, Printable {
         
     }
     
+    class func getDummyMap() -> Map {
+        return Map(mappingType: MappingType.FromJSON, JSONDictionary: [String : AnyObject]())
+    }
+    
     // MARK: - Get list properties and datatype
     
-    lazy var properties: [String : Any.Type] = self.propertys()
-    
+    lazy var properties: [String : String] = self.propertys()
+    /*
+    // This is for swift 1.2
     func propertys() -> [String : Any.Type]
     {
         let m = reflect(self)
@@ -72,11 +95,42 @@ class PMSBaseEntity: NSObject, Mappable, Printable {
         }
         return s
     }
+    */
+    
+    // Swift 2.0
+    func propertys() -> [String : String]
+    {
+        var s = [String : String]()
+//        for c in Mirror(reflecting: self).children
+//        {
+//            
+//            if let name = c.label {
+//                DLog(name)
+//                DLog(c.value)
+//            }
+//            
+////            s[name.componentsSeparatedByString(".")[0]] = type.valueType
+//        }
+        
+        var count: UInt32 = 0
+        let classToInspect = self.classForCoder
+        let properties : UnsafeMutablePointer <objc_property_t> = class_copyPropertyList(classToInspect, &count)
+        let intCount = Int(count)
+        for var i = 0; i < intCount; i++ {
+            let property : objc_property_t = properties[i]
+            let propertyName = NSString(UTF8String: property_getName(property))!.lowercaseString
+            let propertyType = NSString(UTF8String: property_getAttributes(property))!
+            s[propertyName] = propertyType.componentsSeparatedByString(",")[0].stringByReplacingOccurrencesOfString("T@\"", withString: "").stringByReplacingOccurrencesOfString("\"", withString: "")
+        }
+        
+        free(properties)
+        return s
+    }
     
     // MARK: - Database Support
     func getValueInDatabase(columnName: String, resultSet: FMResultSet) -> AnyObject? {
         let value: AnyObject?
-        let typeName = "\(properties[columnName])"
+        let typeName = properties[columnName]!
         
         if typeName.rangeOfString("Date") != nil {
             value = resultSet.dateForColumn(columnName)
@@ -94,8 +148,12 @@ class PMSBaseEntity: NSObject, Mappable, Printable {
     }
     
     class func getObjects(columns: [String]!, conditions : [PMSQueryCondition]?, orderBy: String? = nil, ascending: Bool = true, db : FMDatabase) ->[PMSBaseEntity]? {
+        return self.getObjects(columns, conditions: conditions, orderBy: orderBy, limit:nil, ascending: ascending, db: db)
+    }
+    
+    class func getObjects(columns: [String]!, conditions : [PMSQueryCondition]?, orderBy: String? = nil, limit:PMSQueryLimit?, ascending: Bool = true, db : FMDatabase) -> [PMSBaseEntity]? {
         
-        var selectCommand = NSMutableString(string: "SELECT ")
+        let selectCommand = NSMutableString(string: "SELECT ")
         if columns == nil || columns.count == 0 {
             selectCommand.appendString(" * ")
         } else {
@@ -111,13 +169,42 @@ class PMSBaseEntity: NSObject, Mappable, Printable {
         let resultSet: FMResultSet?
         var arrValues: [AnyObject]! = nil
         if conditions != nil && conditions?.count > 0 {
-            var allKeys  = [String]()
             arrValues = [AnyObject]()
             
             selectCommand.appendString(" WHERE ")
+            
+            var haveIn: Bool = false
+            
             for condition in conditions! {
-                selectCommand.appendString(" \(condition.combine.rawValue) `\(condition.key)` \(PMSSQLCondition.multipleCondition(condition.conditions)) ?,")
-                arrValues.append(condition.value)
+                
+                haveIn = (condition.conditions.filter({ (cond) -> Bool in
+                    cond == PMSSQLCondition.IN
+                }).count > 0)
+                
+                if haveIn {
+                    
+                    selectCommand.appendString(" \(condition.combine.rawValue) `\(condition.key)` \(PMSSQLCondition.multipleCondition(condition.conditions)) (")
+
+                    if let inValues = condition.value as? [AnyObject] {
+                      
+                        for value in inValues {
+                            arrValues.append(value)
+                            selectCommand.appendString("?, ")
+                        }
+                        
+                        selectCommand.deleteCharactersInRange(NSMakeRange(selectCommand.length - 2, 2))
+                        selectCommand.appendString(")  ")
+                    } else if let inValue = condition.value as? String {
+                        selectCommand.appendString(" \(condition.combine.rawValue) `\(condition.key)` \(PMSSQLCondition.multipleCondition(condition.conditions)) \(inValue)  ")
+                    } else {
+                        DLog("pass wrong value for IN")
+                    }
+                    
+                } else {
+                    selectCommand.appendString(" \(condition.combine.rawValue) `\(condition.key)` \(PMSSQLCondition.multipleCondition(condition.conditions)) ? ")
+                    arrValues.append(condition.value)
+                }
+                
             }
             
             selectCommand.deleteCharactersInRange(NSMakeRange(selectCommand.length - 1, 1))
@@ -134,6 +221,11 @@ class PMSBaseEntity: NSObject, Mappable, Printable {
             }
         }
         
+        // Limit
+        if limit != nil {
+            selectCommand.appendString(" LIMIT \(limit!.limit) OFFSET \(limit!.offset)")
+        }
+        
         resultSet = db.executeQuery(selectCommand as String, withArgumentsInArray: arrValues)
         if resultSet != nil {
             
@@ -141,13 +233,11 @@ class PMSBaseEntity: NSObject, Mappable, Printable {
             var object: NSObject?
             var objects: [PMSBaseEntity] = [PMSBaseEntity]()
             var columnName: String
-            var columnValue: AnyObject!
+
             while resultSet!.next() {
-                object = classType()
+                object = classType.init()
                 
                 if let objectInstance = object as? PMSBaseEntity {
-                    let properties = objectInstance.propertys()
-                    var typeName: String
                     for i in 0..<resultSet!.columnCount() {
                         columnName = resultSet!.columnNameForIndex(i)
                         objectInstance[columnName] = objectInstance.getValueInDatabase(columnName, resultSet: resultSet!)
@@ -168,6 +258,44 @@ class PMSBaseEntity: NSObject, Mappable, Printable {
         return nil
     }
     
+    class func object(fromResultSet resultSet: FMResultSet) -> PMSBaseEntity! {
+        let classType: NSObject.Type = self.self
+        let object: NSObject?
+        var columnName: String
+        
+        object = classType.init()
+        
+        if let objectInstance = object as? PMSBaseEntity {
+            for i in 0..<resultSet.columnCount() {
+                columnName = resultSet.columnNameForIndex(i)
+                objectInstance[columnName] = objectInstance.getValueInDatabase(columnName, resultSet: resultSet)
+            }
+            
+            return objectInstance
+        }
+        
+        return nil
+    }
+    
+    class func getLatestID(idColumnName: String = "id", db: FMDatabase) -> NSNumber {
+        let sqlCommand = "SELECT `\(idColumnName)` FROM `\(self.table())` ORDER BY `\(idColumnName)` DESC LIMIT 1 OFFSET 0"
+        let latestID = db.longForQuery(sqlCommand)
+        let idNumber: NSNumber
+        if latestID != nil {
+            idNumber = NSNumber(long: latestID)
+        } else {
+            idNumber = NSNumber(long: 0)
+        }
+        
+        return idNumber
+    }
+    
+    class func getNextID(idColumnName: String = "id", db: FMDatabase) -> NSNumber {
+        let latestID = self.getLatestID(idColumnName, db: db)
+        let idNumber = NSNumber(long: latestID.longValue + 1)
+        return idNumber
+    }
+    
     func insertToDB(db : FMDatabase) -> Bool {
         return false
     }
@@ -182,43 +310,81 @@ class PMSBaseEntity: NSObject, Mappable, Printable {
             return false
         }
         
-        var sqlCommand = "UPDATE `" + self.classForCoder.table() + "` SET"
+        let sqlCommand = NSMutableString(string: "UPDATE `" + self.classForCoder.table() + "` SET")
         var allKeys  = [String]()
         var arrValues = [AnyObject]()
         for (key, value) in values {
             allKeys.append(key)
             arrValues.append(value)
             
-            sqlCommand += " `\(key)` = ?,"
+            sqlCommand.appendString(" `\(key)` = ?,")
         }
         
-        sqlCommand.removeAtIndex(sqlCommand.endIndex.predecessor())
+        sqlCommand.deleteCharactersInRange(NSMakeRange(sqlCommand.length - 1, 1))
         
-        sqlCommand += " WHERE"
+        sqlCommand.appendString(" WHERE")
         
-        var allConditionValues = [AnyObject]()
         if conditions == nil {
-            sqlCommand += " id = ? "
-            allKeys.append("id")
-            arrValues.append(self["id"])
+            
+            let primaryKeys = self.classForCoder.primaryKey()
+            if primaryKeys != nil {
+                for primaryKey in primaryKeys! {
+                    if let value = self[primaryKey] {
+                        sqlCommand.appendString(" `\(primaryKey)` = ? ")
+                        allKeys.append(primaryKey)
+                        arrValues.append(value)
+                    }
+                    
+                }
+            }
+            
         } else {
+            
+            var haveIn: Bool = false
+            
             for queryCondition in conditions! {
                 allKeys.append(queryCondition.key)
-                arrValues.append(queryCondition.value)
-                sqlCommand += " \(queryCondition.combine.rawValue) `\(queryCondition.key)` \(PMSSQLCondition.multipleCondition(queryCondition.conditions)) ?,"
+                
+                haveIn = (queryCondition.conditions.filter({ (cond) -> Bool in
+                    cond == PMSSQLCondition.IN
+                }).count > 0)
+                
+                if haveIn {
+                    
+                    sqlCommand.appendString(" \(queryCondition.combine.rawValue) `\(queryCondition.key)` \(PMSSQLCondition.multipleCondition(queryCondition.conditions)) (")
+                    
+                    if let inValues = queryCondition.value as? [AnyObject] {
+                        
+                        for value in inValues {
+                            arrValues.append(value)
+                            sqlCommand.appendString("?, ")
+                        }
+                        
+                        sqlCommand.deleteCharactersInRange(NSMakeRange(sqlCommand.length - 2, 2))
+                        sqlCommand.appendString(")  ")
+                    } else if let inValue = queryCondition.value as? String {
+                        sqlCommand.appendString(" \(queryCondition.combine.rawValue) `\(queryCondition.key)` \(PMSSQLCondition.multipleCondition(queryCondition.conditions)) \(inValue)  ")
+                    } else {
+                        DLog("pass wrong value for IN")
+                    }
+                    
+                } else {
+                    arrValues.append(queryCondition.value)
+                    sqlCommand.appendString(" \(queryCondition.combine.rawValue) `\(queryCondition.key)` \(PMSSQLCondition.multipleCondition(queryCondition.conditions)) ? ")
+                }
             }
-            sqlCommand.removeAtIndex(sqlCommand.endIndex.predecessor())
+
         }
         
         DLog("Update command: \(sqlCommand)")
-        let result = db.executeUpdate(sqlCommand, withArgumentsInArray: arrValues)
+        let result = db.executeUpdate(sqlCommand as String, withArgumentsInArray: arrValues)
         
         return result
     }
     
     func deleteToDB(db : FMDatabase) -> Bool {
         
-        var sqlCommand = "DELETE FROM `" + PMSBaseEntity.table() + "` WHERE `id` = ?"
+        let sqlCommand = "DELETE FROM `" + PMSBaseEntity.table() + "` WHERE `id` = ?"
         let result = db.executeUpdate(sqlCommand, withArgumentsInArray: [self["id"]])
         
         return result
@@ -233,7 +399,7 @@ class PMSBaseEntity: NSObject, Mappable, Printable {
     }
     
     class func columnWithTableName(column: String) -> String {
-        return self.table() + ".\(column)"
+        return "`" + self.table() + "`.`\(column)`"
     }
     
     class func primaryKey() ->[String]? {
@@ -279,12 +445,12 @@ class PMSBaseEntity: NSObject, Mappable, Printable {
     
     subscript(key : String) -> AnyObject! {
         get {
-            return unknownProperties.valueForKey(key)
+            return unknownProperties[key]
         }
         
         set {
             if newValue != nil {
-                unknownProperties.setValue(newValue, forKey: key)
+                unknownProperties[key] = newValue
             }
         }
     }
@@ -292,11 +458,10 @@ class PMSBaseEntity: NSObject, Mappable, Printable {
     func debugQuickLookObject() -> AnyObject? {
         return ""
     }
+    
     override var description: String {
         
-        get {
-            return super.description + ": \(self.debugQuickLookObject())"
-        }
+        return super.description + ": \(self.debugQuickLookObject())"
     }
     
     func checkNil(value: AnyObject!) -> AnyObject {
@@ -312,23 +477,42 @@ class PMSBaseEntity: NSObject, Mappable, Printable {
             return value
         } else if let value = dateValue as? String {
             
-            let dateFormat = NSDateFormatter()
-            dateFormat.dateFormat = SERVER_DATE_FORMAT
-            let date = dateFormat.dateFromString(value)
+            var date = PMSDateUtils.shareInstance.dateFromString(value)
+            
+            if date == nil {
+                date = PMSDateUtils.shareInstance.dateFromString(value, format: SERVER_TIME_FORMAT)
+            }
+            
+            if date == nil {
+                date = PMSDateUtils.shareInstance.dateFromString(value, format: SERVER_DATE_TIME_FORMAT)
+            }
             return date
+            
         } else if let value = dateValue as? NSNumber  {
+            
             let doubleValue = value.doubleValue
             if doubleValue == 0 {
                 return nil
             }
             let date = NSDate(timeIntervalSince1970: doubleValue)
             return date
+            
         } else if let value = dateValue as? Double {
               let date = NSDate(timeIntervalSince1970: value)
             return date
         }
         
         return nil
+    }
+    
+    func tryParserText(value: AnyObject?) -> String! {
+        if let textValue = value as? String {
+            return textValue
+        } else if let numberValue = value as? NSNumber {
+            return PMSNumberUtils.shareInstance.stringFromNumber(numberValue, includeGroupingSeparator: false)
+        } else {
+            return ""
+        }
     }
     
 }
