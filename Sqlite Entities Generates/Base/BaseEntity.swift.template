@@ -3,7 +3,7 @@
 //  PMS
 //
 //  Created by Nguyen Thanh Hung on 8/14/15.
-//  SQLite Entities Create: NguyenHungA5
+//
 //
 
 import UIKit
@@ -41,8 +41,8 @@ public struct PMSQueryCondition {
     var key: String
     var value: AnyObject!
     var conditions: [PMSSQLCondition]
-    
-    init(combine: PMSSQLCondition, key: String, value: AnyObject!, conditions: [PMSSQLCondition]) {
+
+    init(combine: PMSSQLCondition = .NONE, key: String, value: AnyObject!, conditions: [PMSSQLCondition]) {
         self.combine = combine
         self.key = key
         self.value = value
@@ -130,7 +130,7 @@ class PMSBaseEntity: NSObject, Mappable {
     // MARK: - Database Support
     func getValueInDatabase(columnName: String, resultSet: FMResultSet) -> AnyObject? {
         let value: AnyObject?
-        let typeName = properties[columnName]!
+        let typeName = (properties[columnName] ?? "AnyObject")!
         
         if typeName.rangeOfString("Date") != nil {
             value = resultSet.dateForColumn(columnName)
@@ -142,7 +142,7 @@ class PMSBaseEntity: NSObject, Mappable {
             value = resultSet.objectForColumnName(columnName)
         }
         
-        DLog("Column: \(columnName) type: \(properties[columnName]) value: \(value)")
+//        DLog("Column: \(columnName) type: \(typeName) value: \(value)")
         
         return value
     }
@@ -384,7 +384,7 @@ class PMSBaseEntity: NSObject, Mappable {
     
     func deleteToDB(db : FMDatabase) -> Bool {
         
-        let sqlCommand = "DELETE FROM `" + PMSBaseEntity.table() + "` WHERE `id` = ?"
+        let sqlCommand = "DELETE FROM `" + self.classForCoder.table() + "` WHERE `id` = ?"
         let result = db.executeUpdate(sqlCommand, withArgumentsInArray: [self["id"]])
         
         return result
@@ -515,4 +515,7 @@ class PMSBaseEntity: NSObject, Mappable {
         }
     }
     
+    func tableName() -> String {
+        return self.classForCoder.table()
+    }
 }
