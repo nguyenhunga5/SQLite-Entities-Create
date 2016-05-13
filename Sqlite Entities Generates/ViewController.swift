@@ -167,6 +167,7 @@ class ViewController: NSViewController {
                 parserObjectString.appendString("\n\t\tswitch tableName {\n")
                 parserObjectFromDBString.appendString("\n\t\tswitch tableName {\n")
                 
+                
                 while resultTable.next() {
                     let tableName = resultTable.stringForColumn("name")
                     var fileName = applicationShortName + self.convertToNiceName(tableName)
@@ -268,6 +269,10 @@ class ViewController: NSViewController {
                     var subscriptGetStr = "switch key {\n"
                     var subscriptSetStr = "if newValue == nil || newValue.isKindOfClass(NSNull.classForCoder()) {\n\t\t\t\treturn\n\t\t\t}\n\t\t\tswitch key {\n"
                     
+                    let parserObjectCopyString = NSMutableString(string: "")
+                    parserObjectCopyString.appendString("\n\toverride func copyWithZone(zone: NSZone) -> AnyObject  {\n")
+                    parserObjectCopyString.appendString("\n\t\tlet copyObject = \(className)()")
+                    
                     // Create Properties
                     let numberFormatter = NSNumberFormatter()
                     content.appendString("\n\t// MARK: - Properties\n")
@@ -357,6 +362,9 @@ class ViewController: NSViewController {
                         // subscript
                         subscriptGetStr += "\n\t\t\tcase \(className).k\(self.convertToNiceName(columnRealNames[i])) :\n\t\t\t\treturn self.\(name)"
                         subscriptSetStr += "\n\t\t\tcase \(className).k\(self.convertToNiceName(columnRealNames[i])) :\n\t\t\t\tself.\(name) = newValue as! \(columnTypes[i])"
+                        
+                        // Copying
+                        parserObjectCopyString.appendString("\n\t\t\tcopyObject[\(className).k\(self.convertToNiceName(columnRealNames[i]))] = self[\(className).k\(self.convertToNiceName(columnRealNames[i]))]")
                     }
                     
                     subscriptGetStr += "\n\t\t\tdefault:\n\t\t\t\treturn super[key]\n\t\t\t}"
@@ -518,6 +526,8 @@ class ViewController: NSViewController {
                     }
                     content.appendString("\t}\n")
                     
+                    parserObjectCopyString.appendString("\n\t}\n")
+                    content.appendString(parserObjectCopyString as String)
                     
                     // Close of class
                     content.appendString("}")
