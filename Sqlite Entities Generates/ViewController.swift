@@ -138,6 +138,7 @@ class ViewController: NSViewController {
                 }
                 
                 let parserObjectString = NSMutableString(string: "")
+                let parserObjectFromDBString = NSMutableString(string: "")
                 
                 parserObjectString.appendString("//\n")
                 parserObjectString.appendString("// PMSParserTableDataHelper\n")
@@ -158,8 +159,13 @@ class ViewController: NSViewController {
                 parserObjectString.appendString("class PMSParserTableDataHelper : PMSBaseEntity {\n")
                 
                 parserObjectString.appendString("\tfunc parserDataToTableArray(tableName: String, rows: [NSDictionary]) -> [PMSBaseEntity] {\n")
+                parserObjectFromDBString.appendString("\n\tfunc getClassType(tableName: String) -> PMSBaseEntity.Type {\n")
+                
                 parserObjectString.appendString("\n\t\tvar arr: [PMSBaseEntity]!\n")
+                parserObjectFromDBString.appendString("\n\t\tlet type: PMSBaseEntity.Type\n")
+                
                 parserObjectString.appendString("\n\t\tswitch tableName {\n")
+                parserObjectFromDBString.appendString("\n\t\tswitch tableName {\n")
                 
                 while resultTable.next() {
                     let tableName = resultTable.stringForColumn("name")
@@ -168,6 +174,7 @@ class ViewController: NSViewController {
                     fileName += ".swift"
                     
                     parserObjectString.appendString("\t\tcase \(className).table():\n\t\t\tarr = Mapper<\(className)>().mapArray(rows)\n\n")
+                    parserObjectFromDBString.appendString("\t\tcase \(className).table():\n\t\t\ttype = \(className).self\n\n")
                     
                     
                     self.addStringToLog("Creating table \(tableName) className: \(className)")
@@ -522,7 +529,11 @@ class ViewController: NSViewController {
                     
                 }
                 
-                parserObjectString.appendString("\t\tdefault:\n\t\t\tprint(\"Don't have table: \\(tableName)\")\n\t\t}\n\t\treturn arr\n\t}\n}")
+                parserObjectString.appendString("\t\tdefault:\n\t\t\tprint(\"Don't have table: \\(tableName)\")\n\t\t}\n\t\treturn arr\n\t}")
+                parserObjectFromDBString.appendString("\t\tdefault:\n\t\t\ttype = PMSBaseEntity.self\n\t\t}\n\t\treturn type\n\t}\n}")
+                
+                parserObjectString.appendString(parserObjectFromDBString as String)
+                
                 do {
                     try parserObjectString.writeToFile(dirPath + "/\(applicationShortName)ParserTableDataHelper.swift", atomically: true, encoding: NSUTF8StringEncoding)
                 } catch _ {
