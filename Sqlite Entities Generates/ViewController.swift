@@ -270,7 +270,7 @@ class ViewController: NSViewController {
                     var subscriptSetStr = "if newValue == nil || newValue.isKindOfClass(NSNull.classForCoder()) {\n\t\t\t\treturn\n\t\t\t}\n\t\t\tswitch key {\n"
                     
                     let parserObjectCopyString = NSMutableString(string: "")
-                    parserObjectCopyString.appendString("\n\tfunc copyWithZone(zone: NSZone) -> AnyObject  {\n")
+                    parserObjectCopyString.appendString("\n\toverride func copyWithZone(zone: NSZone) -> AnyObject  {\n")
                     parserObjectCopyString.appendString("\n\t\tlet copyObject = \(className)()")
                     
                     // Create Properties
