@@ -270,7 +270,7 @@ class ViewController: NSViewController {
                     var subscriptSetStr = "if newValue == nil || newValue.isKindOfClass(NSNull.classForCoder()) {\n\t\t\t\treturn\n\t\t\t}\n\t\t\tswitch key {\n"
                     
                     let parserObjectCopyString = NSMutableString(string: "")
-                    parserObjectCopyString.appendString("\n\toverride func copyWithZone(zone: NSZone) -> AnyObject  {\n")
+                    parserObjectCopyString.appendString("\n\tfunc copyWithZone(zone: NSZone) -> AnyObject  {\n")
                     parserObjectCopyString.appendString("\n\t\tlet copyObject = \(className)()")
                     
                     // Create Properties
@@ -364,7 +364,7 @@ class ViewController: NSViewController {
                         subscriptSetStr += "\n\t\t\tcase \(className).k\(self.convertToNiceName(columnRealNames[i])) :\n\t\t\t\tself.\(name) = newValue as! \(columnTypes[i])"
                         
                         // Copying
-                        parserObjectCopyString.appendString("\n\t\t\tcopyObject[\(className).k\(self.convertToNiceName(columnRealNames[i]))] = self[\(className).k\(self.convertToNiceName(columnRealNames[i]))]")
+                        parserObjectCopyString.appendString("\n\t\tcopyObject[\(className).k\(self.convertToNiceName(columnRealNames[i]))] = self[\(className).k\(self.convertToNiceName(columnRealNames[i]))]")
                     }
                     
                     subscriptGetStr += "\n\t\t\tdefault:\n\t\t\t\treturn super[key]\n\t\t\t}"
@@ -526,6 +526,7 @@ class ViewController: NSViewController {
                     }
                     content.appendString("\t}\n")
                     
+                    parserObjectCopyString.appendString("\n\t\treturn copyObject")
                     parserObjectCopyString.appendString("\n\t}\n")
                     content.appendString(parserObjectCopyString as String)
                     
